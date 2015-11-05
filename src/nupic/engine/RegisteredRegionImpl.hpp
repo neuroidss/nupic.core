@@ -5,15 +5,15 @@
  * following terms and conditions apply:
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 3 as
+ * it under the terms of the GNU Affero Public License version 3 as
  * published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
+ * See the GNU Affero Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero Public License
  * along with this program.  If not, see http://www.gnu.org/licenses.
  *
  * http://numenta.org/licenses/
@@ -42,40 +42,53 @@ namespace nupic
 
   class GenericRegisteredRegionImpl {
     public:
-      GenericRegisteredRegionImpl() {
-      }
-      virtual ~GenericRegisteredRegionImpl() {
-      }
-      virtual RegionImpl* createRegionImpl(const ValueMap& params, Region *region) {
-        return nullptr;
-      }
-      virtual RegionImpl* deserializeRegionImpl(BundleIO& params, Region *region) {
-        return nullptr;
-      }
-      virtual Spec* createSpec() {
-        return nullptr;
-      }
+      GenericRegisteredRegionImpl() {}
+
+      virtual ~GenericRegisteredRegionImpl() {}
+
+      virtual RegionImpl* createRegionImpl(
+          const ValueMap& params, Region *region) = 0;
+
+      virtual RegionImpl* deserializeRegionImpl(
+          BundleIO& params, Region *region) = 0;
+
+      virtual RegionImpl* deserializeRegionImpl(
+          capnp::AnyPointer::Reader& proto, Region *region) = 0;
+
+      virtual Spec* createSpec() = 0;
   };
 
   template <class T>
   class RegisteredRegionImpl: public GenericRegisteredRegionImpl {
     public:
-      RegisteredRegionImpl() {
-      }
-      ~RegisteredRegionImpl() {
-      }
-      T* createRegionImpl(const ValueMap& params, Region *region) {
+      RegisteredRegionImpl() {}
+
+      ~RegisteredRegionImpl() {}
+
+      virtual RegionImpl* createRegionImpl(
+          const ValueMap& params, Region *region) override
+      {
         return new T(params, region);
       }
-      T* deserializeRegionImpl(BundleIO& params, Region *region) {
+
+      virtual RegionImpl* deserializeRegionImpl(
+          BundleIO& params, Region *region) override
+      {
         return new T(params, region);
       }
-      Spec* createSpec()
+
+      virtual RegionImpl* deserializeRegionImpl(
+          capnp::AnyPointer::Reader& proto, Region *region) override
+      {
+        return new T(proto, region);
+      }
+
+      virtual Spec* createSpec() override
       {
         return T::createSpec();
       }
   };
-}
 
+}
 
 #endif // NTA_REGISTERED_REGION_IMPL_HPP

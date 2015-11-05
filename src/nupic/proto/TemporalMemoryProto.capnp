@@ -1,10 +1,10 @@
 @0xc5bf8243b0c10764;
 
 # TODO: Use absolute path
-using import "ConnectionsProto.capnp".ConnectionsProto;
-using import "RandomProto.capnp".RandomProto;
+using import "/nupic/proto/ConnectionsProto.capnp".ConnectionsProto;
+using import "/nupic/proto/RandomProto.capnp".RandomProto;
 
-# Next ID: 16
+# Next ID: 19
 struct TemporalMemoryProto {
 
   columnDimensions @0 :List(UInt32);
@@ -16,7 +16,7 @@ struct TemporalMemoryProto {
   minThreshold @6 :UInt32;
   maxNewSynapseCount @7 :UInt32;
   permanenceIncrement @8 :Float32;
-  permanenceDecrement @9 :Float32;
+  permanenceDecrement @9 :Float32;  
 
   connections @10 :ConnectionsProto;
   random @11 :RandomProto;
@@ -26,5 +26,7 @@ struct TemporalMemoryProto {
   predictiveCells @13 :List(UInt32);
   activeSegments @14 :List(UInt32);
   winnerCells @15 :List(UInt32);
-
+  matchingSegments @16 :List(UInt32);
+  matchingCells @17 :List(UInt32);
+  predictedSegmentDecrement @18 :Float32;
 }

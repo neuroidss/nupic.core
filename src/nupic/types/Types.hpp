@@ -5,15 +5,15 @@
  * following terms and conditions apply:
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 3 as
+ * it under the terms of the GNU Affero Public License version 3 as
  * published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
+ * See the GNU Affero Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero Public License
  * along with this program.  If not, see http://www.gnu.org/licenses.
  *
  * http://numenta.org/licenses/
@@ -102,7 +102,7 @@ namespace nupic
   /**
    * @name Flexible types
    * 
-   * The following are flexible types depending on `NTA_DOUBLE_PROCESION` and `NTA_BIG_INTEGER`.
+   * The following are flexible types depending on `NTA_DOUBLE_PRECISION` and `NTA_BIG_INTEGER`.
    *
    * @{
    * 
@@ -111,7 +111,7 @@ namespace nupic
   /**
    * Represents a real number(a floating-point number).
    *
-   * Same as nupic::Real64 if `NTA_DOUBLE_PROCESION` is defined, nupic::Real32 otherwise.
+   * Same as nupic::Real64 if `NTA_DOUBLE_PRECISION` is defined, nupic::Real32 otherwise.
    */
   typedef NTA_Real Real;
 

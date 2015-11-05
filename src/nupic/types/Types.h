@@ -5,15 +5,15 @@
  * following terms and conditions apply:
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 3 as
+ * it under the terms of the GNU Affero Public License version 3 as
  * published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
+ * See the GNU Affero Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero Public License
  * along with this program.  If not, see http://www.gnu.org/licenses.
  *
  * http://numenta.org/licenses/
@@ -36,9 +36,10 @@
 
 #if defined(NTA_OS_WINDOWS) && defined(NTA_COMPILER_MSVC) && defined(NDEBUG)
 #pragma warning( disable : 4244 ) // conversion from 'double' to 'nta::Real', possible loss of data (LOTS of various type combinations)
-#pragma warning( disable : 4305 ) // truncation from 'double' to 'nta::Real', possible loss of data (LOTS of various type combinations)
 #pragma warning( disable : 4251 ) // needs to have dll-interface to be used by clients of class 
 #pragma warning( disable : 4275 ) // non dll-interface struct used as base for dll-interface class
+#pragma warning( disable : 4305 ) // truncation from 'double' to 'nta::Real', possible loss of data (LOTS of various type combinations)
+#pragma warning( once : 4838 ) // narrowing conversions
 #endif
 
 /*---------------------------------------------------------------------- */
@@ -240,7 +241,7 @@ typedef uintptr_t      NTA_UIntPtr;
 /**
  * @name Flexible types
  * 
- * The following are flexible types depending on `NTA_DOUBLE_PROCESION` and `NTA_BIG_INTEGER`.
+ * The following are flexible types depending on `NTA_DOUBLE_PRECISION` and `NTA_BIG_INTEGER`.
  *
  * @{
  * 
@@ -250,7 +251,7 @@ typedef uintptr_t      NTA_UIntPtr;
   /**
    * Represents a real number(a floating-point number).
    *
-   * Same as NTA_Real64 if `NTA_DOUBLE_PROCESION` is defined, NTA_Real32 otherwise.
+   * Same as NTA_Real64 if `NTA_DOUBLE_PRECISION` is defined, NTA_Real32 otherwise.
    */
   typedef NTA_Real64 NTA_Real;
   #define NTA_REAL_TYPE_STRING "NTA_Real64"
@@ -258,7 +259,7 @@ typedef uintptr_t      NTA_UIntPtr;
   /**
    * Represents a real number(a floating-point number).
    *
-   * Same as NTA_Real64 if `NTA_DOUBLE_PROCESION` is defined, NTA_Real32 otherwise.
+   * Same as NTA_Real64 if `NTA_DOUBLE_PRECISION` is defined, NTA_Real32 otherwise.
    */
   typedef NTA_Real32 NTA_Real;
   #define NTA_REAL_TYPE_STRING "NTA_Real32"
