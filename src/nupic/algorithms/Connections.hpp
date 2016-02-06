@@ -31,11 +31,10 @@
 #include <utility>
 #include <vector>
 
+#include <nupic/types/Serializable.hpp>
 #include <nupic/types/Types.hpp>
 #include <nupic/math/Math.hpp>
 #include <nupic/proto/ConnectionsProto.capnp.h>
-
-using namespace std;
 
 namespace nupic
 {
@@ -218,7 +217,7 @@ namespace nupic
        * compute the activity of cells due to input over the connections.
        *
        */
-      class Connections
+      class Connections : public Serializable<ConnectionsProto>
       {
       public:
         static const UInt16 VERSION = 1;
@@ -371,6 +370,17 @@ namespace nupic
         bool leastRecentlyUsedSegment(const Cell& cell,
                                       Segment& retSegment) const;
 
+         /**
+          * Gets the synapse with the lowest permanence on the segment.
+          *
+          * @param segment       Segment whose synapses to consider.
+          * @param retSynapse    Synapse with the lowest permanence.
+          *
+          * @retval False if segment has no synapses.
+          */
+         bool minPermanenceSynapse(const Segment& segment,
+                                   Synapse& retSynapse) const;
+
         /**
          * Forward-propagates input to synapses, dendrites, and cells, to
          * compute their activity.
@@ -409,32 +419,32 @@ namespace nupic
         /**
          * Saves serialized data to output stream.
          */
-        virtual void save(ostream& outStream) const;
+        virtual void save(std::ostream& outStream) const;
 
         /**
          * Writes serialized data to output stream.
          */
-        virtual void write(ostream& stream) const;
+        using Serializable::write;
 
         /**
          * Writes serialized data to proto object.
          */
-        virtual void write(ConnectionsProto::Builder& proto) const;
+        virtual void write(ConnectionsProto::Builder& proto) const override;
 
         /**
          * Loads serialized data from input stream.
          */
-        virtual void load(istream& inStream);
+        virtual void load(std::istream& inStream);
 
         /**
          * Reads serialized data from input stream.
          */
-        virtual void read(istream& stream);
+        using Serializable::read;
 
         /**
          * Reads serialized data from proto object.
          */
-        virtual void read(ConnectionsProto::Reader& proto);
+        virtual void read(ConnectionsProto::Reader& proto) override;
 
         // Debugging
 

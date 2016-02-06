@@ -27,6 +27,7 @@
 #ifndef NTA_PY_CAPNP_HPP
 #define NTA_PY_CAPNP_HPP
 
+#if !CAPNP_LITE
 #include <Python.h>
 
 #include <capnp/any.h>
@@ -38,7 +39,6 @@
 
 namespace nupic
 {
-  bool initialized = false;
 
   struct pycapnp_SchemaParser {
     PyObject_HEAD
@@ -99,26 +99,11 @@ namespace nupic
     return proto;
   }
 
-  PyObject* getPyReader(capnp::DynamicStruct::Reader reader)
-  {
-    if (!initialized) {
-      initCapnpToPycapnp();
-      initialized = true;
-    }
-    py::Ptr parent(Py_None);
-    return createReader(reader, parent);
-  }
-
-  PyObject* getPyBuilder(capnp::DynamicStruct::Builder builder)
-  {
-    if (!initialized) {
-      initCapnpToPycapnp();
-      initialized = true;
-    }
-    py::Ptr parent(Py_None);
-    return createBuilder(builder, parent);
-  }
+  PyObject* getPyReader(capnp::DynamicStruct::Reader reader);
+  PyObject* getPyBuilder(capnp::DynamicStruct::Builder builder);
 
 }  // namespace nupic
+
+#endif // !CAPNP_LITE
 
 #endif  // NTA_PY_CAPNP_HPP

@@ -28,6 +28,7 @@
 #define NTA_TEMPORAL_MEMORY_HPP
 
 #include <vector>
+#include <nupic/types/Serializable.hpp>
 #include <nupic/types/Types.hpp>
 #include <nupic/utils/Random.hpp>
 #include <nupic/algorithms/Connections.hpp>
@@ -64,7 +65,7 @@ namespace nupic {
        *     }
        *
        */
-      class TemporalMemory {
+      class TemporalMemory : public Serializable<TemporalMemoryProto> {
       public:
         TemporalMemory();
 
@@ -101,7 +102,9 @@ namespace nupic {
           Permanence permanenceIncrement = 0.10,
           Permanence permanenceDecrement = 0.10,
           Permanence predictedSegmentDecrement = 0.0,
-          Int seed = 42);
+          Int seed = 42,
+          UInt maxSegmentsPerCell=MAX_SEGMENTS_PER_CELL,
+          UInt maxSynapsesPerSegment=MAX_SYNAPSES_PER_SEGMENT);
 
         virtual void initialize(
           vector<UInt> columnDimensions = { 2048 },
@@ -114,7 +117,9 @@ namespace nupic {
           Permanence permanenceIncrement = 0.10,
           Permanence permanenceDecrement = 0.10,
           Permanence predictedSegmentDecrement = 0.0,
-          Int seed = 42);
+          Int seed = 42,
+          UInt maxSegmentsPerCell=MAX_SEGMENTS_PER_CELL,
+          UInt maxSynapsesPerSegment=MAX_SYNAPSES_PER_SEGMENT);
 
         virtual ~TemporalMemory();
 
@@ -419,14 +424,23 @@ namespace nupic {
          */
         Int columnForCell(Cell& cell);
 
+       /**
+        * Returns the Cell objects that belong to a column.
+        *
+        * @param column Column index
+        *
+        * @return (vector<Cell>) Cell objects
+        */
+       vector<Cell> cellsForColumnCell(Int column);
+
         /**
          * Returns the indices of cells that belong to a column.
          *
          * @param column Column index
          *
-         * @return (set) Cell indices
+         * @return (vector<CellIdx>) Cell indices
          */
-        vector<Cell> cellsForColumn(Int column);
+        vector<CellIdx> cellsForColumn(Int column);
 
         /**
          * Returns the number of cells in this layer.
@@ -434,6 +448,34 @@ namespace nupic {
          * @return (int) Number of cells
          */
         UInt numberOfCells(void);
+
+        /**
+        * Returns the indices of the active cells.
+        *
+        * @returns (std::vector<CellIdx>) Vector of indices of active cells.
+        */
+        vector<CellIdx> getActiveCells() const;
+
+        /**
+        * Returns the indices of the predictive cells.
+        *
+        * @returns (std::vector<CellIdx>) Vector of indices of predictive cells.
+        */
+        vector<CellIdx> getPredictiveCells() const;
+
+        /**
+        * Returns the indices of the winner cells.
+        *
+        * @returns (std::vector<CellIdx>) Vector of indices of winner cells.
+        */
+        vector<CellIdx> getWinnerCells() const;
+
+        /**
+        * Returns the indices of the matching cells.
+        *
+        * @returns (std::vector<CellIdx>) Vector of indices of matching cells.
+        */
+        vector<CellIdx> getMatchingCells() const;
 
         /**
          * Maps cells to the columns they belong to
@@ -529,6 +571,17 @@ namespace nupic {
         Permanence getPredictedSegmentDecrement() const;
         void setPredictedSegmentDecrement(Permanence);
 
+       /**
+        * Extracts a vector<CellIdx> from a Iterable of Cells.
+        *
+        * @param Iterable<Cell> Iterable of Cells
+        *                       (.e.g. set<Cell>, vector<Cell>).
+        *
+        * @returns vector<CellIdx> The indices of the Cells in the Iterable.
+        */
+        template <typename Iterable>
+        vector<CellIdx> _cellsToIndices(const Iterable &cellSet) const;
+
         /**
          * Raises an error if column index is invalid.
          *
@@ -565,8 +618,8 @@ namespace nupic {
          */
         virtual void save(ostream& outStream) const;
 
-        virtual void write(ostream& stream) const;
-        virtual void write(TemporalMemoryProto::Builder& proto) const;
+        using Serializable::write;
+        virtual void write(TemporalMemoryProto::Builder& proto) const override;
 
         /**
          * Load (deserialize) and initialize the spatial pooler from the
@@ -576,8 +629,8 @@ namespace nupic {
          */
         virtual void load(istream& inStream);
 
-        virtual void read(istream& stream);
-        virtual void read(TemporalMemoryProto::Reader& proto);
+        using Serializable::read;
+        virtual void read(TemporalMemoryProto::Reader& proto) override;
 
         /**
          * Returns the number of bytes that a save operation would result in.
