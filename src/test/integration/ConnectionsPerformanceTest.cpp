@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  * Numenta Platform for Intelligent Computing (NuPIC)
- * Copyright (C) 2015, Numenta, Inc.  Unless you have an agreement
+ * Copyright (C) 2015-2016, Numenta, Inc.  Unless you have an agreement
  * with Numenta, Inc., for a separate license for this software code, the
  * following terms and conditions apply:
  *
@@ -105,9 +105,9 @@ namespace nupic
 
     // Learn
 
-    vector< vector< vector<Cell> > >sequences;
-    vector< vector<Cell> >sequence;
-    vector<Cell> sdr;
+    vector< vector< vector<CellIdx> > >sequences;
+    vector< vector<CellIdx> >sequence;
+    vector<CellIdx> sdr;
 
     for (int i = 0; i < numSequences; i++)
     {
@@ -156,22 +156,21 @@ namespace nupic
   {
     clock_t timer = clock();
 
-    Connections connections(numCells, 1, numInputs);
-    Cell cell;
+    Connections connections(numCells);
     Segment segment;
-    vector<Cell> sdr;
-    Activity activity;
+    vector<CellIdx> sdr;
 
     // Initialize
 
     for (UInt c = 0; c < numCells; c++)
     {
-      cell = Cell(c);
       segment = connections.createSegment(c);
 
       for (UInt i = 0; i < numInputs; i++)
       {
-        connections.createSynapse(segment, i, (Permanence)rand()/RAND_MAX);
+        const Permanence permanence = max((Permanence)0.000001,
+                                          (Permanence)rand()/RAND_MAX);
+        connections.createSynapse(segment, i, permanence);
       }
     }
 
@@ -179,23 +178,33 @@ namespace nupic
 
     // Learn
 
-    vector<Cell> winnerCells;
-    SynapseData synapseData;
+    vector<CellIdx> winnerCells;
     Permanence permanence;
 
     for (int i = 0; i < 500; i++)
     {
       sdr = randomSDR(numInputs, w);
-      activity = connections.computeActivity(sdr, 0.5, 0);
-      winnerCells = computeSPWinnerCells(numWinners, activity);
+      vector<UInt32> numActiveConnectedSynapsesForSegment(
+        connections.segmentFlatListLength(), 0);
+      vector<UInt32> numActivePotentialSynapsesForSegment(
+        connections.segmentFlatListLength(), 0);
+      connections.computeActivity(numActiveConnectedSynapsesForSegment,
+                                  numActivePotentialSynapsesForSegment,
+                                  sdr, 0.5);
+      winnerCells = computeSPWinnerCells(connections, numWinners,
+                                         numActiveConnectedSynapsesForSegment);
 
-      for (Cell winnerCell : winnerCells)
+      for (CellIdx winnerCell : winnerCells)
       {
-        segment = Segment(0, winnerCell);
+        segment = connections.getSegment(winnerCell, 0);
 
-        for (Synapse synapse : connections.synapsesForSegment(segment))
+        const vector<Synapse>& synapses =
+          connections.synapsesForSegment(segment);
+
+        for (SynapseIdx i = 0; i < (SynapseIdx)synapses.size();)
         {
-          synapseData = connections.dataForSynapse(synapse);
+          const Synapse synapse = synapses[i];
+          const SynapseData& synapseData = connections.dataForSynapse(synapse);
           permanence = synapseData.permanence;
 
           if (find(sdr.begin(), sdr.end(), synapseData.presynapticCell) !=
@@ -211,9 +220,16 @@ namespace nupic
           permanence = max(permanence, (Permanence)0);
           permanence = min(permanence, (Permanence)1);
 
-          // TODO (Question): Remove synapses with 0 permanence?
-
-          connections.updateSynapsePermanence(synapse, permanence);
+          if (permanence == 0)
+          {
+            connections.destroySynapse(synapse);
+            // The synapses list is updated in-place, so don't update `i`.
+          }
+          else
+          {
+            connections.updateSynapsePermanence(synapse, permanence);
+            i++;
+          }
         }
       }
     }
@@ -225,8 +241,15 @@ namespace nupic
     for (int i = 0; i < 500; i++)
     {
       sdr = randomSDR(numInputs, w);
-      activity = connections.computeActivity(sdr, 0.5, 0);
-      winnerCells = computeSPWinnerCells(numWinners, activity);
+      vector<UInt32> numActiveConnectedSynapsesForSegment(
+        connections.segmentFlatListLength(), 0);
+      vector<UInt32> numActivePotentialSynapsesForSegment(
+        connections.segmentFlatListLength(), 0);
+      connections.computeActivity(numActiveConnectedSynapsesForSegment,
+                                  numActivePotentialSynapsesForSegment,
+                                  sdr, 0.5);
+      winnerCells = computeSPWinnerCells(connections, numWinners,
+                                         numActiveConnectedSynapsesForSegment);
     }
 
     checkpoint(timer, label + ": initialize + learn + test");
@@ -238,10 +261,10 @@ namespace nupic
     cout << duration << " in " << text << endl;
   }
 
-  vector<Cell> ConnectionsPerformanceTest::randomSDR(UInt n, UInt w)
+  vector<CellIdx> ConnectionsPerformanceTest::randomSDR(UInt n, UInt w)
   {
     set<UInt> sdrSet = set<UInt>();
-    vector<Cell> sdr = vector<Cell>();
+    vector<CellIdx> sdr;
 
     for (UInt i = 0; i < w; i++)
     {
@@ -250,48 +273,59 @@ namespace nupic
 
     for (UInt c : sdrSet)
     {
-      sdr.push_back(Cell(c));
+      sdr.push_back(c);
     }
 
     return sdr;
   }
 
   void ConnectionsPerformanceTest::feedTM(TemporalMemory &tm,
-                                          vector<Cell> sdr,
+                                          vector<CellIdx> sdr,
                                           bool learn)
   {
     vector<UInt> activeColumns;
 
     for (auto c : sdr)
     {
-      activeColumns.push_back(c.idx);
+      activeColumns.push_back(c);
     }
 
     tm.compute(activeColumns.size(), activeColumns.data(), learn);
   }
 
-  vector<Cell> ConnectionsPerformanceTest::computeSPWinnerCells(
-    UInt numCells, Activity& activity)
+  vector<CellIdx> ConnectionsPerformanceTest::computeSPWinnerCells(
+    Connections& connections,
+    UInt numCells,
+    const vector<UInt>& numActiveSynapsesForSegment)
   {
-    vector< pair<Segment, SynapseIdx> > numActiveSynapsesList;
-    vector<Cell>winnerCells;
-
-    numActiveSynapsesList.assign(activity.numActiveSynapsesForSegment.begin(),
-                                 activity.numActiveSynapsesForSegment.end());
-
-    sort(numActiveSynapsesList.begin(), numActiveSynapsesList.end(),
-         [](const pair<Segment, SynapseIdx>& left,
-            const pair<Segment, SynapseIdx>& right)
-         {
-           return left.second > right.second;
-         });
-
-    for (UInt j = 0; j < min(numCells, (UInt)numActiveSynapsesList.size()); j++)
+    // Activate every segment, then choose the top few.
+    vector<Segment> activeSegments;
+    for (Segment segment = 0;
+         segment < numActiveSynapsesForSegment.size();
+         segment++)
     {
-      winnerCells.push_back(numActiveSynapsesList[j].first.cell);
+      activeSegments.push_back(segment);
     }
 
-    return winnerCells;
+    set<CellIdx> winnerCells;
+    std::sort(activeSegments.begin(), activeSegments.end(),
+              [&](Segment a, Segment b)
+              {
+                return
+                  numActiveSynapsesForSegment[a] >
+                  numActiveSynapsesForSegment[b];
+              });
+
+    for (Segment segment : activeSegments)
+    {
+      winnerCells.insert(connections.cellForSegment(segment));
+      if (winnerCells.size() >= numCells)
+      {
+        break;
+      }
+    }
+
+    return vector<CellIdx>(winnerCells.begin(), winnerCells.end());
   }
 
 } // end namespace nupic

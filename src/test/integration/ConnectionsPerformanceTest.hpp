@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  * Numenta Platform for Intelligent Computing (NuPIC)
- * Copyright (C) 2015, Numenta, Inc.  Unless you have an agreement
+ * Copyright (C) 2015-2016, Numenta, Inc.  Unless you have an agreement
  * with Numenta, Inc., for a separate license for this software code, the
  * following terms and conditions apply:
  *
@@ -45,8 +45,7 @@ namespace nupic
 
     namespace connections
     {
-      struct Activity;
-      struct Cell;
+      typedef UInt32 Segment;
     }
   }
 
@@ -77,12 +76,14 @@ namespace nupic
                               std::string label);
 
     void checkpoint(clock_t timer, std::string text);
-    std::vector<algorithms::connections::Cell> randomSDR(UInt n, UInt w);
+    std::vector<UInt32> randomSDR(UInt n, UInt w);
     void feedTM(algorithms::temporal_memory::TemporalMemory &tm,
-                std::vector<algorithms::connections::Cell> sdr,
+                std::vector<CellIdx> sdr,
                 bool learn = true);
-    std::vector<algorithms::connections::Cell> computeSPWinnerCells(
-      UInt numCells, algorithms::connections::Activity& activity);
+    std::vector<CellIdx> computeSPWinnerCells(
+      Connections& connections,
+      UInt numCells,
+      const vector<UInt>& numActiveSynapsesForSegment);
 
   }; // end class ConnectionsPerformanceTest
 

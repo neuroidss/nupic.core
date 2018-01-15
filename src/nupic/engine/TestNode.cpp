@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  * Numenta Platform for Intelligent Computing (NuPIC)
- * Copyright (C) 2013, Numenta, Inc.  Unless you have an agreement
+ * Copyright (C) 2013-2017, Numenta, Inc.  Unless you have an agreement
  * with Numenta, Inc., for a separate license for this software code, the
  * following terms and conditions apply:
  *
@@ -54,8 +54,11 @@ using capnp::AnyPointer;
 namespace nupic
 {
 
-  TestNode::TestNode(const ValueMap& params, Region *region) : RegionImpl(region),
-                                                               nodeCount_(1)
+  TestNode::TestNode(const ValueMap& params, Region *region) :
+    RegionImpl(region),
+    computeCallback_(nullptr),
+    nodeCount_(1)
+
   {
     // params for get/setParameter testing
     int32Param_ = params.getScalarT<Int32>("int32Param", 32);
@@ -64,12 +67,11 @@ namespace nupic
     uint64Param_ = params.getScalarT<UInt64>("uint64Param", 65);
     real32Param_ = params.getScalarT<Real32>("real32Param", 32.1);
     real64Param_ = params.getScalarT<Real64>("real64Param", 64.1);
+    boolParam_ = params.getScalarT<bool>("boolParam", false);
 
     shouldCloneParam_ = params.getScalarT<UInt32>("shouldCloneParam", 1) != 0;
 
     stringParam_ = *params.getString("stringParam");
-
-    computeCallback_ = nullptr;
 
     real32ArrayParam_.resize(8);
     for (size_t i = 0; i < 8; i++)
@@ -82,6 +84,13 @@ namespace nupic
     {
       int64ArrayParam_[i] = i * 64;
     }
+
+    boolArrayParam_.resize(4);
+    for (size_t i = 0; i < 4; i++)
+    {
+      boolArrayParam_[i] = (i % 2) == 1;
+    }
+
 
     unclonedParam_.resize(nodeCount_);
     unclonedParam_[0] = params.getScalarT<UInt32>("unclonedParam", 0);
@@ -108,7 +117,9 @@ namespace nupic
 
 
   TestNode::TestNode(AnyPointer::Reader& proto, Region* region) :
-    RegionImpl(region)
+    RegionImpl(region),
+    computeCallback_(nullptr)
+
   {
     read(proto);
   }
@@ -221,6 +232,16 @@ namespace nupic
         ParameterSpec::ReadWriteAccess));
 
     ns->parameters.add(
+      "boolParam",
+      ParameterSpec(
+        "bool scalar parameter",  // description
+        NTA_BasicType_Bool,
+        1,                         // elementCount
+        "",                        // constraints
+        "false",                    // defaultValue
+        ParameterSpec::ReadWriteAccess));
+
+    ns->parameters.add(
       "real32ArrayParam",
       ParameterSpec(
         "int32 array parameter",
@@ -235,6 +256,16 @@ namespace nupic
       ParameterSpec(
         "int64 array parameter",
         NTA_BasicType_Int64,
+        0, // array
+        "",
+        "",
+        ParameterSpec::ReadWriteAccess));
+
+    ns->parameters.add(
+      "boolArrayParam",
+      ParameterSpec(
+        "bool array parameter",
+        NTA_BasicType_Bool,
         0, // array
         "",
         "",
@@ -310,7 +341,7 @@ namespace nupic
         0, // count. omit?
         true, // required?
         false, // isRegionLevel,
-        true  // isDefaultOutput
+        true  // isDefaultInput
         ));
 
     /* ----- outputs ------ */
@@ -373,6 +404,8 @@ namespace nupic
       value.write(real32Param_);
     } else if (name == "real64Param") {
       value.write(real64Param_);
+    } else if (name == "boolParam") {
+      value.write(boolParam_);
     } else if (name == "stringParam") {
       value.write(stringParam_.c_str(), stringParam_.size());
     } else if (name == "int64ArrayParam") {
@@ -437,6 +470,8 @@ namespace nupic
       value.read(real32Param_);
     } else if (name == "real64Param") {
       value.read(real64Param_);
+    } else if (name == "boolParam") {
+      value.read(boolParam_);
     } else if (name == "stringParam") {
       stringParam_ = std::string(value.getData(), value.getSize());
     } else if (name == "int64ArrayParam") {
@@ -501,6 +536,10 @@ namespace nupic
     else if (name == "real32ArrayParam")
     {
       return real32ArrayParam_.size();
+    }
+    else if (name == "boolArrayParam")
+    {
+      return boolArrayParam_.size();
     }
     else if (name == "unclonedInt64ArrayParam")
     {
@@ -570,9 +609,11 @@ namespace nupic
         (name == "uint64Param") ||
         (name == "real32Param") ||
         (name == "real64Param") ||
+        (name == "boolParam") ||
         (name == "stringParam") ||
         (name == "int64ArrayParam") ||
         (name == "real32ArrayParam") ||
+        (name == "boolArrayParam") ||
         (name == "shouldCloneParam")) {
       return true;
     } else if ((name == "unclonedParam") ||
@@ -590,7 +631,7 @@ namespace nupic
   {
     s << "ARRAY_" << name << " ";
     s << array.size() << " ";
-    for (auto & elem : array)
+    for (auto elem : array)
     {
       s << elem << " ";
     }
@@ -621,7 +662,7 @@ namespace nupic
       // There is more than one way to do this. We could serialize to YAML, which
       // would make a readable format, or we could serialize directly to the stream
       // Choose the easier one.
-      f << "TestNode-v1" << " "
+      f << "TestNode-v2" << " "
         << nodeCount_ << " "
         << int32Param_ << " "
         << uint32Param_ << " "
@@ -629,12 +670,14 @@ namespace nupic
         << uint64Param_ << " "
         << real32Param_ << " "
         << real64Param_ << " "
+        << boolParam_ << " "
         << outputElementCount_ << " "
         << delta_ << " "
         << iter_ << " ";
 
       arrayOut(f, real32ArrayParam_, "real32ArrayParam_");
       arrayOut(f, int64ArrayParam_, "int64ArrayParam_");
+      arrayOut(f, boolArrayParam_, "boolArrayParam_");
       arrayOut(f, unclonedParam_, "unclonedParam_");
       f << shouldCloneParam_ << " ";
 
@@ -677,11 +720,11 @@ namespace nupic
       // Choose the easier one.
       std::string versionString;
       f >> versionString;
-      if (versionString != "TestNode-v1")
+      if (versionString != "TestNode-v2")
       {
         NTA_THROW << "Bad serialization for region '" << region_->getName()
                   << "' of type TestNode. Main serialization file must start "
-                  << "with \"TestNode-v1\" but instead it starts with '"
+                  << "with \"TestNode-v2\" but instead it starts with '"
                   << versionString << "'";
 
       }
@@ -692,12 +735,14 @@ namespace nupic
       f >> uint64Param_;
       f >> real32Param_;
       f >> real64Param_;
+      f >> boolParam_;
       f >> outputElementCount_;
       f >> delta_;
       f >> iter_;
 
       arrayIn(f, real32ArrayParam_, "real32ArrayParam_");
       arrayIn(f, int64ArrayParam_, "int64ArrayParam_");
+      arrayIn(f, int64ArrayParam_, "boolArrayParam_");
       arrayIn(f, unclonedParam_, "unclonedParam_");
 
       f >> shouldCloneParam_;
@@ -759,6 +804,7 @@ namespace nupic
     proto.setUint64Param(uint64Param_);
     proto.setReal32Param(real32Param_);
     proto.setReal64Param(real64Param_);
+    proto.setBoolParam(boolParam_);
     proto.setStringParam(stringParam_.c_str());
 
     auto real32ArrayProto =
@@ -772,6 +818,12 @@ namespace nupic
     for (UInt i = 0; i < int64ArrayParam_.size(); i++)
     {
       int64ArrayProto.set(i, int64ArrayParam_[i]);
+    }
+
+    auto boolArrayProto = proto.initBoolArrayParam(boolArrayParam_.size());
+    for (UInt i = 0; i < boolArrayParam_.size(); i++)
+    {
+      boolArrayProto.set(i, boolArrayParam_[i]);
     }
 
     proto.setIterations(iter_);
@@ -813,6 +865,7 @@ namespace nupic
     uint64Param_ = proto.getUint64Param();
     real32Param_ = proto.getReal32Param();
     real64Param_ = proto.getReal64Param();
+    boolParam_ = proto.getBoolParam();
     stringParam_ = proto.getStringParam().cStr();
 
     real32ArrayParam_.clear();
@@ -829,6 +882,14 @@ namespace nupic
     for (UInt i = 0; i < int64ArrayParamProto.size(); i++)
     {
       int64ArrayParam_[i] = int64ArrayParamProto[i];
+    }
+
+    boolArrayParam_.clear();
+    auto boolArrayParamProto = proto.getBoolArrayParam();
+    boolArrayParam_.resize(boolArrayParamProto.size());
+    for (UInt i = 0; i < boolArrayParamProto.size(); i++)
+    {
+      boolArrayParam_[i] = boolArrayParamProto[i];
     }
 
     iter_ = proto.getIterations();
